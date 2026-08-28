@@ -22,6 +22,7 @@ export type Database = {
           phone: string | null
           serial: number
           user_id: string
+          verified: boolean
         }
         Insert: {
           created_at?: string
@@ -30,6 +31,7 @@ export type Database = {
           phone?: string | null
           serial: number
           user_id: string
+          verified?: boolean
         }
         Update: {
           created_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           phone?: string | null
           serial?: number
           user_id?: string
+          verified?: boolean
         }
         Relationships: []
       }
