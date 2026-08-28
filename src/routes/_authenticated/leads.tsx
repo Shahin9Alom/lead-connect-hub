@@ -241,6 +241,7 @@ function LeadsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">#</TableHead>
+                    <TableHead className="w-20 text-center">Status</TableHead>
                     <TableHead>WhatsApp</TableHead>
                     <TableHead>Facebook link</TableHead>
                     <TableHead className="w-32">Date</TableHead>
@@ -251,6 +252,23 @@ function LeadsPage() {
                   {filtered.map((lead) => (
                     <TableRow key={lead.id}>
                       <TableCell className="font-semibold">{lead.serial}</TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-8"
+                          onClick={() =>
+                            toggleVerified.mutate({ id: lead.id, verified: !lead.verified })
+                          }
+                          aria-label={lead.verified ? "Mark as not verified" : "Mark as verified"}
+                        >
+                          {lead.verified ? (
+                            <Check className="size-4 text-blue-500" />
+                          ) : (
+                            <X className="size-4 text-red-500" />
+                          )}
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         {lead.phone ? (
                           <a
@@ -288,7 +306,7 @@ function LeadsPage() {
                           aria-label="Delete lead"
                         >
                           <Trash2 className="size-4 text-destructive" />
-                        </Button>
+                          </Button>
                       </TableCell>
                     </TableRow>
                   ))}
