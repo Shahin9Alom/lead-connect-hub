@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, Trash2, LogOut, Plus, MessageCircle } from "lucide-react";
+import { ExternalLink, Trash2, LogOut, Plus, MessageCircle, X, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ type Lead = {
   serial: number;
   phone: string | null;
   facebook_link: string;
+  verified: boolean;
   created_at: string;
 };
 
@@ -53,7 +54,7 @@ function LeadsPage() {
     queryFn: async (): Promise<Lead[]> => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, serial, phone, facebook_link, created_at")
+        .select("id, serial, phone, facebook_link, verified, created_at")
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -62,15 +63,29 @@ function LeadsPage() {
 
   const addLead = useMutation({
     mutationFn: async () => {
-      const trimmed = link.trim();
-      if (!/^https?:\/\/.+/i.test(trimmed)) throw new Error("Ekta valid link din (https://...)");
+      const trimmedLink = link.trim();
+      const trimmedPhone = phone.trim().slice(0, 30) || null;
+      if (!/^https?:\/\/.+/i.test(trimmedLink)) throw new Error("Ekta valid link din (https://...)");
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData.user?.id;
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
+
+      const linkLower = trimmedLink.toLowerCase();
+      const duplicateLink = leads.find((l) => l.facebook_link.toLowerCase() === linkLower);
+      if (duplicateLink) throw new Error("Ei Facebook link already add kora ache.");
+
+      if (trimmedPhone) {
+        const phoneDigits = trimmedPhone.replace(/\D/g, "");
+        const duplicatePhone = leads.find(
+          (l) => l.phone && l.phone.replace(/\D/g, "") === phoneDigits,
+        );
+        if (duplicatePhone) throw new Error("Ei phone number already add kora ache.");
+      }
+
       const { error } = await supabase.from("leads").insert({
         user_id: uid,
-        facebook_link: trimmed.slice(0, 500),
-        phone: phone.trim().slice(0, 30) || null,
+        facebook_link: trimmedLink.slice(0, 500),
+        phone: trimmedPhone,
         serial: 0,
       });
       if (error) throw error;
@@ -93,6 +108,15 @@ function LeadsPage() {
       toast.success("Lead delete hoyeche");
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleVerified = useMutation({
+    mutationFn: async ({ id, verified }: { id: string; verified: boolean }) => {
+      const { error } = await supabase.from("leads").update({ verified }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -217,6 +241,7 @@ function LeadsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">#</TableHead>
+                    <TableHead className="w-20 text-center">Status</TableHead>
                     <TableHead>WhatsApp</TableHead>
                     <TableHead>Facebook link</TableHead>
                     <TableHead className="w-32">Date</TableHead>
@@ -227,6 +252,23 @@ function LeadsPage() {
                   {filtered.map((lead) => (
                     <TableRow key={lead.id}>
                       <TableCell className="font-semibold">{lead.serial}</TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-8"
+                          onClick={() =>
+                            toggleVerified.mutate({ id: lead.id, verified: !lead.verified })
+                          }
+                          aria-label={lead.verified ? "Mark as not verified" : "Mark as verified"}
+                        >
+                          {lead.verified ? (
+                            <Check className="size-4 text-blue-500" />
+                          ) : (
+                            <X className="size-4 text-red-500" />
+                          )}
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         {lead.phone ? (
                           <a
@@ -264,7 +306,7 @@ function LeadsPage() {
                           aria-label="Delete lead"
                         >
                           <Trash2 className="size-4 text-destructive" />
-                        </Button>
+                          </Button>
                       </TableCell>
                     </TableRow>
                   ))}
