@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, Trash2, LogOut, Plus } from "lucide-react";
+import { ExternalLink, Trash2, LogOut, Plus, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,7 @@ import {
 type Lead = {
   id: string;
   serial: number;
-  name: string | null;
+  phone: string | null;
   facebook_link: string;
   created_at: string;
 };
@@ -44,7 +44,7 @@ function LeadsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [link, setLink] = useState("");
-  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -53,7 +53,7 @@ function LeadsPage() {
     queryFn: async (): Promise<Lead[]> => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, serial, name, facebook_link, created_at")
+        .select("id, serial, phone, facebook_link, created_at")
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -70,14 +70,14 @@ function LeadsPage() {
       const { error } = await supabase.from("leads").insert({
         user_id: uid,
         facebook_link: trimmed.slice(0, 500),
-        name: name.trim().slice(0, 120) || null,
+        phone: phone.trim().slice(0, 30) || null,
         serial: 0,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       setLink("");
-      setName("");
+      setPhone("");
       toast.success("Lead add hoyeche");
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
@@ -154,13 +154,13 @@ function LeadsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="name">Name / page (optional)</Label>
+                <Label htmlFor="phone">Phone number (optional)</Label>
                 <Input
-                  id="name"
-                  maxLength={120}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Rahim / Page name"
+                  id="phone"
+                  maxLength={30}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="8801XXXXXXXXX"
                 />
               </div>
               <Button type="submit" className="sm:self-end" disabled={addLead.isPending}>
@@ -217,7 +217,7 @@ function LeadsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">#</TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead>WhatsApp</TableHead>
                     <TableHead>Facebook link</TableHead>
                     <TableHead className="w-32">Date</TableHead>
                     <TableHead className="w-12" />
@@ -227,7 +227,21 @@ function LeadsPage() {
                   {filtered.map((lead) => (
                     <TableRow key={lead.id}>
                       <TableCell className="font-semibold">{lead.serial}</TableCell>
-                      <TableCell>{lead.name ?? "—"}</TableCell>
+                      <TableCell>
+                        {lead.phone ? (
+                          <a
+                            href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20"
+                          >
+                            <MessageCircle className="size-3" />
+                            {lead.phone}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No number</span>
+                        )}
+                      </TableCell>
                       <TableCell className="max-w-[280px] truncate">
                         <a
                           href={lead.facebook_link}
