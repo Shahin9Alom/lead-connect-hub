@@ -116,6 +116,47 @@ function LeadsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const addBulk = useMutation({
+    mutationFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
+
+      const existingLinks = new Set(leads.map((l) => l.facebook_link.toLowerCase()));
+      const rows: { user_id: string; facebook_link: string; serial: number }[] = [];
+      const seen = new Set<string>();
+      let skipped = 0;
+
+      for (const line of bulkText.split("\n")) {
+        const match = line.match(/https?:\/\/\S+/i);
+        if (!match) continue;
+        const url = match[0].replace(/[),.;]+$/, "").slice(0, 500);
+        const key = url.toLowerCase();
+        if (seen.has(key) || existingLinks.has(key)) {
+          skipped++;
+          continue;
+        }
+        seen.add(key);
+        rows.push({ user_id: uid, facebook_link: url, serial: 0 });
+      }
+
+      if (rows.length === 0)
+        throw new Error(skipped > 0 ? "Shob link already add kora ache." : "Kono valid link pawa jayni.");
+      const { error } = await supabase.from("leads").insert(rows);
+      if (error) throw error;
+      return { added: rows.length, skipped };
+    },
+    onSuccess: ({ added, skipped }) => {
+      setBulkText("");
+      setShowBulk(false);
+      toast.success(
+        skipped > 0 ? `${added} ta lead add hoyeche (${skipped} ta duplicate skip)` : `${added} ta lead add hoyeche`,
+      );
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const removeLead = useMutation({
     mutationFn: async (ids: string[]) => {
       const { error } = await supabase.from("leads").delete().in("id", ids);
