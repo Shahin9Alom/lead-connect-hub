@@ -1,12 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, Trash2, LogOut, Plus, MessageCircle, X, Check } from "lucide-react";
+import {
+  ExternalLink,
+  Trash2,
+  LogOut,
+  Plus,
+  MessageCircle,
+  X,
+  Check,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -23,6 +34,7 @@ type Lead = {
   phone: string | null;
   facebook_link: string;
   verified: boolean;
+  archived: boolean;
   created_at: string;
 };
 
@@ -32,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/leads")({
       { title: "Leads Dashboard — LeadVault" },
       {
         name: "description",
-        content: "Save Facebook lead links with auto serial numbers and filter them by date.",
+        content: "Save Facebook lead links with auto serial numbers, archive and filter by date.",
       },
       { property: "og:title", content: "Leads Dashboard — LeadVault" },
       { property: "og:description", content: "Your Facebook leads, organised and date-filtered." },
@@ -48,13 +60,15 @@ function LeadsPage() {
   const [phone, setPhone] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [view, setView] = useState<"active" | "archived">("active");
+  const [selected, setSelected] = useState<string[]>([]);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async (): Promise<Lead[]> => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, serial, phone, facebook_link, verified, created_at")
+        .select("id, serial, phone, facebook_link, verified, archived, created_at")
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -100,12 +114,26 @@ function LeadsPage() {
   });
 
   const removeLead = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("leads").delete().eq("id", id);
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("leads").delete().in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => {
+      setSelected([]);
       toast.success("Lead delete hoyeche");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setArchived = useMutation({
+    mutationFn: async ({ ids, archived }: { ids: string[]; archived: boolean }) => {
+      const { error } = await supabase.from("leads").update({ archived }).in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      setSelected([]);
+      toast.success(v.archived ? "Archive kora hoyeche" : "Unarchive kora hoyeche");
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -122,12 +150,21 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
+      if (l.archived !== (view === "archived")) return false;
       const d = new Date(l.created_at);
       if (from && d < new Date(`${from}T00:00:00`)) return false;
       if (to && d > new Date(`${to}T23:59:59`)) return false;
       return true;
     });
-  }, [leads, from, to]);
+  }, [leads, from, to, view]);
+
+  useEffect(() => {
+    setSelected([]);
+  }, [view]);
+
+  const visibleIds = filtered.map((l) => l.id);
+  const selectedVisible = selected.filter((id) => visibleIds.includes(id));
+  const allSelected = visibleIds.length > 0 && selectedVisible.length === visibleIds.length;
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -144,7 +181,7 @@ function LeadsPage() {
           <div>
             <h1 className="text-3xl font-bold">LeadVault</h1>
             <p className="text-sm opacity-90">
-              Facebook lead links — auto serial number & date filter
+              Facebook lead links — auto serial number, archive & date filter
             </p>
           </div>
           <Button variant="secondary" size="sm" onClick={signOut}>
@@ -196,9 +233,28 @@ function LeadsPage() {
 
         <Card>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <CardTitle className="text-lg">
-              Leads <span className="text-muted-foreground">({filtered.length})</span>
-            </CardTitle>
+            <div className="space-y-3">
+              <CardTitle className="text-lg">
+                {view === "active" ? "Leads" : "Archive"}{" "}
+                <span className="text-muted-foreground">({filtered.length})</span>
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={view === "active" ? "default" : "outline"}
+                  onClick={() => setView("active")}
+                >
+                  Active
+                </Button>
+                <Button
+                  size="sm"
+                  variant={view === "archived" ? "default" : "outline"}
+                  onClick={() => setView("archived")}
+                >
+                  <Archive className="mr-2 size-4" /> Archive
+                </Button>
+              </div>
+            </div>
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
                 <Label htmlFor="from" className="text-xs">
@@ -230,16 +286,60 @@ function LeadsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {selectedVisible.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+                <span className="text-sm font-medium">{selectedVisible.length} selected</span>
+                <div className="ml-auto flex flex-wrap gap-2">
+                  {view === "active" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={setArchived.isPending}
+                      onClick={() => setArchived.mutate({ ids: selectedVisible, archived: true })}
+                    >
+                      <Archive className="mr-2 size-4" /> Archive
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={setArchived.isPending}
+                      onClick={() => setArchived.mutate({ ids: selectedVisible, archived: false })}
+                    >
+                      <ArchiveRestore className="mr-2 size-4" /> Unarchive
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={removeLead.isPending}
+                    onClick={() => removeLead.mutate(selectedVisible)}
+                  >
+                    <Trash2 className="mr-2 size-4" /> Remove
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {isLoading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
             ) : filtered.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                Kono lead nei. Upore link add korun.
+                {view === "active"
+                  ? "Kono lead nei. Upore link add korun."
+                  : "Archive khali ache."}
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={(c) => setSelected(c ? visibleIds : [])}
+                        aria-label="Select all leads"
+                      />
+                    </TableHead>
                     <TableHead className="w-16">#</TableHead>
                     <TableHead className="w-20 text-center">Status</TableHead>
                     <TableHead>WhatsApp</TableHead>
@@ -250,7 +350,18 @@ function LeadsPage() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((lead) => (
-                    <TableRow key={lead.id}>
+                    <TableRow key={lead.id} data-state={selected.includes(lead.id) && "selected"}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selected.includes(lead.id)}
+                          onCheckedChange={(c) =>
+                            setSelected((prev) =>
+                              c ? [...prev, lead.id] : prev.filter((id) => id !== lead.id),
+                            )
+                          }
+                          aria-label={`Select lead ${lead.serial}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-semibold">{lead.serial}</TableCell>
                       <TableCell className="text-center">
                         <Button
@@ -299,14 +410,30 @@ function LeadsPage() {
                         {new Date(lead.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLead.mutate(lead.id)}
-                          aria-label="Delete lead"
-                        >
-                          <Trash2 className="size-4 text-destructive" />
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setArchived.mutate({ ids: [lead.id], archived: !lead.archived })
+                            }
+                            aria-label={lead.archived ? "Unarchive lead" : "Archive lead"}
+                          >
+                            {lead.archived ? (
+                              <ArchiveRestore className="size-4" />
+                            ) : (
+                              <Archive className="size-4" />
+                            )}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeLead.mutate([lead.id])}
+                            aria-label="Delete lead"
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
