@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.set_lead_serial() FROM PUBLIC, anon, authenticated;
