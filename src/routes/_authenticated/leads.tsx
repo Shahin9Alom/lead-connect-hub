@@ -63,15 +63,29 @@ function LeadsPage() {
 
   const addLead = useMutation({
     mutationFn: async () => {
-      const trimmed = link.trim();
-      if (!/^https?:\/\/.+/i.test(trimmed)) throw new Error("Ekta valid link din (https://...)");
+      const trimmedLink = link.trim();
+      const trimmedPhone = phone.trim().slice(0, 30) || null;
+      if (!/^https?:\/\/.+/i.test(trimmedLink)) throw new Error("Ekta valid link din (https://...)");
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData.user?.id;
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
+
+      const linkLower = trimmedLink.toLowerCase();
+      const duplicateLink = leads.find((l) => l.facebook_link.toLowerCase() === linkLower);
+      if (duplicateLink) throw new Error("Ei Facebook link already add kora ache.");
+
+      if (trimmedPhone) {
+        const phoneDigits = trimmedPhone.replace(/\D/g, "");
+        const duplicatePhone = leads.find(
+          (l) => l.phone && l.phone.replace(/\D/g, "") === phoneDigits,
+        );
+        if (duplicatePhone) throw new Error("Ei phone number already add kora ache.");
+      }
+
       const { error } = await supabase.from("leads").insert({
         user_id: uid,
-        facebook_link: trimmed.slice(0, 500),
-        phone: phone.trim().slice(0, 30) || null,
+        facebook_link: trimmedLink.slice(0, 500),
+        phone: trimmedPhone,
         serial: 0,
       });
       if (error) throw error;
