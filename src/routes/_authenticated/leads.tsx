@@ -22,6 +22,7 @@ type Lead = {
   serial: number;
   phone: string | null;
   facebook_link: string;
+  verified: boolean;
   created_at: string;
 };
 
