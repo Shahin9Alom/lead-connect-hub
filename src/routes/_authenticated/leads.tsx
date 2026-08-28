@@ -275,6 +275,44 @@ function LeadsPage() {
           </CardContent>
         </Card>
 
+        {!showBulk ? (
+          <Button variant="outline" onClick={() => setShowBulk(true)}>
+            <Plus className="mr-2 size-4" /> Ek sathe onek lead add korun (Bulk Add)
+          </Button>
+        ) : (
+          <Card className="shadow-[var(--shadow-panel)]">
+            <CardHeader>
+              <CardTitle className="text-lg">Bulk Add — onek lead ek sathe</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Prottek line-e ekta kore Facebook link din (number/serial thakleo hobe — shudhu link
+                niya hobe). Duplicate link auto skip hobe.
+              </p>
+              <Textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                rows={8}
+                placeholder={
+                  "429. https://www.facebook.com/example1\n430. https://www.facebook.com/example2\nhttps://www.facebook.com/example3"
+                }
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => addBulk.mutate()}
+                  disabled={addBulk.isPending || !bulkText.trim()}
+                >
+                  <Plus className="mr-2 size-4" />
+                  {addBulk.isPending ? "Adding…" : "Shob add korun"}
+                </Button>
+                <Button variant="ghost" onClick={() => setShowBulk(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-3">
