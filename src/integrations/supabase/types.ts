@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       leads: {
         Row: {
+          archived: boolean
           created_at: string
           facebook_link: string
           id: string
@@ -25,6 +26,7 @@ export type Database = {
           verified: boolean
         }
         Insert: {
+          archived?: boolean
           created_at?: string
           facebook_link: string
           id?: string
@@ -34,6 +36,7 @@ export type Database = {
           verified?: boolean
         }
         Update: {
+          archived?: boolean
           created_at?: string
           facebook_link?: string
           id?: string
