@@ -54,7 +54,7 @@ function LeadsPage() {
     queryFn: async (): Promise<Lead[]> => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, serial, phone, facebook_link, created_at")
+        .select("id, serial, phone, facebook_link, verified, created_at")
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
