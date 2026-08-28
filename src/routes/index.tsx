@@ -1,24 +1,54 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "LeadVault — Facebook Lead Management" },
+      {
+        name: "description",
+        content:
+          "Save Facebook lead links with auto serial numbers, then filter your whole lead list by date.",
+      },
+      { property: "og:title", content: "LeadVault — Facebook Lead Management" },
+      {
+        property: "og:description",
+        content: "Facebook lead links, auto serial numbers and date filtering in one dashboard.",
+      },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/leads" });
+    });
+  }, [navigate]);
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
+      <div
+        className="mb-8 rounded-3xl px-10 py-14 text-primary-foreground shadow-[var(--shadow-panel)]"
+        style={{ backgroundImage: "var(--gradient-hero)" }}
+      >
+        <h1 className="text-4xl font-bold sm:text-5xl">LeadVault</h1>
+        <p className="mx-auto mt-4 max-w-md text-base opacity-90">
+          Facebook lead links ek jaygay rakhun — protita lead-e auto serial number, ar date filter
+          diye jekono somoyer leads dekhun.
+        </p>
+        <Button asChild size="lg" variant="secondary" className="mt-8">
+          <Link to="/auth">Shuru korun</Link>
+        </Button>
+      </div>
+      <p className="max-w-md text-sm text-muted-foreground">
+        Apnar leads shudhu apnar account-e save thake — nirapod, sob device theke access kora jay.
+      </p>
+    </main>
   );
 }
