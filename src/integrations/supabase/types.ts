@@ -19,7 +19,7 @@ export type Database = {
           created_at: string
           facebook_link: string
           id: string
-          name: string | null
+          phone: string | null
           serial: number
           user_id: string
         }
@@ -27,7 +27,7 @@ export type Database = {
           created_at?: string
           facebook_link: string
           id?: string
-          name?: string | null
+          phone?: string | null
           serial: number
           user_id: string
         }
@@ -35,7 +35,7 @@ export type Database = {
           created_at?: string
           facebook_link?: string
           id?: string
-          name?: string | null
+          phone?: string | null
           serial?: number
           user_id?: string
         }
