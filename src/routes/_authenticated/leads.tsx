@@ -59,6 +59,8 @@ function LeadsPage() {
   const qc = useQueryClient();
   const [link, setLink] = useState("");
   const [phone, setPhone] = useState("");
+  const [bulkText, setBulkText] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [view, setView] = useState<"active" | "archived">("active");
