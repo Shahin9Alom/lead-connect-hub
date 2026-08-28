@@ -111,6 +111,15 @@ function LeadsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const toggleVerified = useMutation({
+    mutationFn: async ({ id, verified }: { id: string; verified: boolean }) => {
+      const { error } = await supabase.from("leads").update({ verified }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const filtered = useMemo(() => {
     return leads.filter((l) => {
       const d = new Date(l.created_at);
