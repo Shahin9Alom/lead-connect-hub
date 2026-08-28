@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   ExternalLink,
@@ -58,6 +59,8 @@ function LeadsPage() {
   const qc = useQueryClient();
   const [link, setLink] = useState("");
   const [phone, setPhone] = useState("");
+  const [bulkText, setBulkText] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [view, setView] = useState<"active" | "archived">("active");
@@ -108,6 +111,47 @@ function LeadsPage() {
       setLink("");
       setPhone("");
       toast.success("Lead add hoyeche");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const addBulk = useMutation({
+    mutationFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
+
+      const existingLinks = new Set(leads.map((l) => l.facebook_link.toLowerCase()));
+      const rows: { user_id: string; facebook_link: string; serial: number }[] = [];
+      const seen = new Set<string>();
+      let skipped = 0;
+
+      for (const line of bulkText.split("\n")) {
+        const match = line.match(/https?:\/\/\S+/i);
+        if (!match) continue;
+        const url = match[0].replace(/[),.;]+$/, "").slice(0, 500);
+        const key = url.toLowerCase();
+        if (seen.has(key) || existingLinks.has(key)) {
+          skipped++;
+          continue;
+        }
+        seen.add(key);
+        rows.push({ user_id: uid, facebook_link: url, serial: 0 });
+      }
+
+      if (rows.length === 0)
+        throw new Error(skipped > 0 ? "Shob link already add kora ache." : "Kono valid link pawa jayni.");
+      const { error } = await supabase.from("leads").insert(rows);
+      if (error) throw error;
+      return { added: rows.length, skipped };
+    },
+    onSuccess: ({ added, skipped }) => {
+      setBulkText("");
+      setShowBulk(false);
+      toast.success(
+        skipped > 0 ? `${added} ta lead add hoyeche (${skipped} ta duplicate skip)` : `${added} ta lead add hoyeche`,
+      );
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -230,6 +274,44 @@ function LeadsPage() {
             </form>
           </CardContent>
         </Card>
+
+        {!showBulk ? (
+          <Button variant="outline" onClick={() => setShowBulk(true)}>
+            <Plus className="mr-2 size-4" /> Ek sathe onek lead add korun (Bulk Add)
+          </Button>
+        ) : (
+          <Card className="shadow-[var(--shadow-panel)]">
+            <CardHeader>
+              <CardTitle className="text-lg">Bulk Add — onek lead ek sathe</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Prottek line-e ekta kore Facebook link din (number/serial thakleo hobe — shudhu link
+                niya hobe). Duplicate link auto skip hobe.
+              </p>
+              <Textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                rows={8}
+                placeholder={
+                  "429. https://www.facebook.com/example1\n430. https://www.facebook.com/example2\nhttps://www.facebook.com/example3"
+                }
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => addBulk.mutate()}
+                  disabled={addBulk.isPending || !bulkText.trim()}
+                >
+                  <Plus className="mr-2 size-4" />
+                  {addBulk.isPending ? "Adding…" : "Shob add korun"}
+                </Button>
+                <Button variant="ghost" onClick={() => setShowBulk(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
