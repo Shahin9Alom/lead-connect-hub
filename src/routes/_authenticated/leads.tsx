@@ -36,6 +36,7 @@ type Lead = {
   facebook_link: string;
   verified: boolean;
   archived: boolean;
+  deleted_at: string | null;
   created_at: string;
 };
 
