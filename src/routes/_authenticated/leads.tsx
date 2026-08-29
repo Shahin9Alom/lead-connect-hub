@@ -502,7 +502,7 @@ function LeadsPage() {
                       </Button>
                     </>
                   )}
-
+                </div>
               </div>
             )}
 
@@ -512,8 +512,11 @@ function LeadsPage() {
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {view === "active"
                   ? "Kono lead nei. Upore link add korun."
-                  : "Archive khali ache."}
+                  : view === "archived"
+                    ? "Archive khali ache."
+                    : "Trash khali ache."}
               </p>
+
             ) : (
               <Table>
                 <TableHeader>
