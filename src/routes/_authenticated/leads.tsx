@@ -366,10 +366,10 @@ function LeadsPage() {
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-3">
               <CardTitle className="text-lg">
-                {view === "active" ? "Leads" : "Archive"}{" "}
+                {view === "active" ? "Leads" : view === "archived" ? "Archive" : "Trash"}{" "}
                 <span className="text-muted-foreground">({filtered.length})</span>
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant={view === "active" ? "default" : "outline"}
@@ -384,9 +384,31 @@ function LeadsPage() {
                 >
                   <Archive className="mr-2 size-4" /> Archive
                 </Button>
+                <Button
+                  size="sm"
+                  variant={view === "trash" ? "default" : "outline"}
+                  onClick={() => setView("trash")}
+                >
+                  <Trash2 className="mr-2 size-4" /> Trash
+                </Button>
               </div>
             </div>
             <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="search" className="text-xs">
+                  Search (serial / link / number)
+                </Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    className="w-48 pl-8"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="429"
+                  />
+                </div>
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="from" className="text-xs">
                   From
@@ -410,6 +432,7 @@ function LeadsPage() {
                 onClick={() => {
                   setFrom("");
                   setTo("");
+                  setSearch("");
                 }}
               >
                 Reset
@@ -417,38 +440,69 @@ function LeadsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {view === "trash" && (
+              <p className="mb-4 text-sm text-muted-foreground">
+                Trash-er lead gulo 30 din por automatic permanently delete hoye jabe. Chaile ekhoni
+                permanently delete ba restore korte paren.
+              </p>
+            )}
             {selectedVisible.length > 0 && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
                 <span className="text-sm font-medium">{selectedVisible.length} selected</span>
                 <div className="ml-auto flex flex-wrap gap-2">
-                  {view === "active" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={setArchived.isPending}
-                      onClick={() => setArchived.mutate({ ids: selectedVisible, archived: true })}
-                    >
-                      <Archive className="mr-2 size-4" /> Archive
-                    </Button>
+                  {view === "trash" ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={restoreLead.isPending}
+                        onClick={() => restoreLead.mutate(selectedVisible)}
+                      >
+                        <RotateCcw className="mr-2 size-4" /> Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={purgeLead.isPending}
+                        onClick={() => purgeLead.mutate(selectedVisible)}
+                      >
+                        <Trash2 className="mr-2 size-4" /> Delete forever
+                      </Button>
+                    </>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={setArchived.isPending}
-                      onClick={() => setArchived.mutate({ ids: selectedVisible, archived: false })}
-                    >
-                      <ArchiveRestore className="mr-2 size-4" /> Unarchive
-                    </Button>
+                    <>
+                      {view === "active" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={setArchived.isPending}
+                          onClick={() => setArchived.mutate({ ids: selectedVisible, archived: true })}
+                        >
+                          <Archive className="mr-2 size-4" /> Archive
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={setArchived.isPending}
+                          onClick={() =>
+                            setArchived.mutate({ ids: selectedVisible, archived: false })
+                          }
+                        >
+                          <ArchiveRestore className="mr-2 size-4" /> Unarchive
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={removeLead.isPending}
+                        onClick={() => removeLead.mutate(selectedVisible)}
+                      >
+                        <Trash2 className="mr-2 size-4" /> Remove
+                      </Button>
+                    </>
                   )}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={removeLead.isPending}
-                    onClick={() => removeLead.mutate(selectedVisible)}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Remove
-                  </Button>
-                </div>
+
               </div>
             )}
 
