@@ -599,30 +599,54 @@ function LeadsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setArchived.mutate({ ids: [lead.id], archived: !lead.archived })
-                            }
-                            aria-label={lead.archived ? "Unarchive lead" : "Archive lead"}
-                          >
-                            {lead.archived ? (
-                              <ArchiveRestore className="size-4" />
-                            ) : (
-                              <Archive className="size-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeLead.mutate([lead.id])}
-                            aria-label="Delete lead"
-                          >
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
+                          {view === "trash" ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => restoreLead.mutate([lead.id])}
+                                aria-label="Restore lead"
+                              >
+                                <RotateCcw className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => purgeLead.mutate([lead.id])}
+                                aria-label="Delete lead forever"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  setArchived.mutate({ ids: [lead.id], archived: !lead.archived })
+                                }
+                                aria-label={lead.archived ? "Unarchive lead" : "Archive lead"}
+                              >
+                                {lead.archived ? (
+                                  <ArchiveRestore className="size-4" />
+                                ) : (
+                                  <Archive className="size-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeLead.mutate([lead.id])}
+                                aria-label="Move lead to trash"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
