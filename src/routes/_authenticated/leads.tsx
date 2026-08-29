@@ -13,6 +13,8 @@ import {
   Check,
   Archive,
   ArchiveRestore,
+  RotateCcw,
+  Search,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ type Lead = {
   facebook_link: string;
   verified: boolean;
   archived: boolean;
+  deleted_at: string | null;
   created_at: string;
 };
 
@@ -63,15 +66,20 @@ function LeadsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [view, setView] = useState<"active" | "archived">("active");
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<"active" | "archived" | "trash">("active");
   const [selected, setSelected] = useState<string[]>([]);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async (): Promise<Lead[]> => {
+      // 30 din er purono trash auto delete
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from("leads").delete().lt("deleted_at", cutoff);
+
       const { data, error } = await supabase
         .from("leads")
-        .select("id, serial, phone, facebook_link, verified, archived, created_at")
+        .select("id, serial, phone, facebook_link, verified, archived, deleted_at, created_at")
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -159,12 +167,41 @@ function LeadsPage() {
 
   const removeLead = useMutation({
     mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setSelected([]);
+      toast.success("Trash-e pathano hoyeche (30 din thakbe)");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const restoreLead = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("leads").update({ deleted_at: null }).in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setSelected([]);
+      toast.success("Restore kora hoyeche");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const purgeLead = useMutation({
+    mutationFn: async (ids: string[]) => {
       const { error } = await supabase.from("leads").delete().in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => {
       setSelected([]);
-      toast.success("Lead delete hoyeche");
+      toast.success("Permanently delete hoyeche");
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -193,14 +230,28 @@ function LeadsPage() {
   });
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return leads.filter((l) => {
-      if (l.archived !== (view === "archived")) return false;
+      if (view === "trash") {
+        if (!l.deleted_at) return false;
+      } else {
+        if (l.deleted_at) return false;
+        if (l.archived !== (view === "archived")) return false;
+      }
+      if (q) {
+        const match =
+          String(l.serial) === q ||
+          String(l.serial).includes(q) ||
+          l.facebook_link.toLowerCase().includes(q) ||
+          (l.phone ?? "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
       const d = new Date(l.created_at);
       if (from && d < new Date(`${from}T00:00:00`)) return false;
       if (to && d > new Date(`${to}T23:59:59`)) return false;
       return true;
     });
-  }, [leads, from, to, view]);
+  }, [leads, from, to, view, search]);
 
   useEffect(() => {
     setSelected([]);
@@ -317,10 +368,10 @@ function LeadsPage() {
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-3">
               <CardTitle className="text-lg">
-                {view === "active" ? "Leads" : "Archive"}{" "}
+                {view === "active" ? "Leads" : view === "archived" ? "Archive" : "Trash"}{" "}
                 <span className="text-muted-foreground">({filtered.length})</span>
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant={view === "active" ? "default" : "outline"}
@@ -335,9 +386,31 @@ function LeadsPage() {
                 >
                   <Archive className="mr-2 size-4" /> Archive
                 </Button>
+                <Button
+                  size="sm"
+                  variant={view === "trash" ? "default" : "outline"}
+                  onClick={() => setView("trash")}
+                >
+                  <Trash2 className="mr-2 size-4" /> Trash
+                </Button>
               </div>
             </div>
             <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="search" className="text-xs">
+                  Search (serial / link / number)
+                </Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    className="w-48 pl-8"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="429"
+                  />
+                </div>
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="from" className="text-xs">
                   From
@@ -361,6 +434,7 @@ function LeadsPage() {
                 onClick={() => {
                   setFrom("");
                   setTo("");
+                  setSearch("");
                 }}
               >
                 Reset
@@ -368,37 +442,68 @@ function LeadsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {view === "trash" && (
+              <p className="mb-4 text-sm text-muted-foreground">
+                Trash-er lead gulo 30 din por automatic permanently delete hoye jabe. Chaile ekhoni
+                permanently delete ba restore korte paren.
+              </p>
+            )}
             {selectedVisible.length > 0 && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
                 <span className="text-sm font-medium">{selectedVisible.length} selected</span>
                 <div className="ml-auto flex flex-wrap gap-2">
-                  {view === "active" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={setArchived.isPending}
-                      onClick={() => setArchived.mutate({ ids: selectedVisible, archived: true })}
-                    >
-                      <Archive className="mr-2 size-4" /> Archive
-                    </Button>
+                  {view === "trash" ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={restoreLead.isPending}
+                        onClick={() => restoreLead.mutate(selectedVisible)}
+                      >
+                        <RotateCcw className="mr-2 size-4" /> Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={purgeLead.isPending}
+                        onClick={() => purgeLead.mutate(selectedVisible)}
+                      >
+                        <Trash2 className="mr-2 size-4" /> Delete forever
+                      </Button>
+                    </>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={setArchived.isPending}
-                      onClick={() => setArchived.mutate({ ids: selectedVisible, archived: false })}
-                    >
-                      <ArchiveRestore className="mr-2 size-4" /> Unarchive
-                    </Button>
+                    <>
+                      {view === "active" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={setArchived.isPending}
+                          onClick={() => setArchived.mutate({ ids: selectedVisible, archived: true })}
+                        >
+                          <Archive className="mr-2 size-4" /> Archive
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={setArchived.isPending}
+                          onClick={() =>
+                            setArchived.mutate({ ids: selectedVisible, archived: false })
+                          }
+                        >
+                          <ArchiveRestore className="mr-2 size-4" /> Unarchive
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={removeLead.isPending}
+                        onClick={() => removeLead.mutate(selectedVisible)}
+                      >
+                        <Trash2 className="mr-2 size-4" /> Remove
+                      </Button>
+                    </>
                   )}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={removeLead.isPending}
-                    onClick={() => removeLead.mutate(selectedVisible)}
-                  >
-                    <Trash2 className="mr-2 size-4" /> Remove
-                  </Button>
                 </div>
               </div>
             )}
@@ -409,8 +514,11 @@ function LeadsPage() {
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {view === "active"
                   ? "Kono lead nei. Upore link add korun."
-                  : "Archive khali ache."}
+                  : view === "archived"
+                    ? "Archive khali ache."
+                    : "Trash khali ache."}
               </p>
+
             ) : (
               <Table>
                 <TableHeader>
@@ -493,30 +601,54 @@ function LeadsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setArchived.mutate({ ids: [lead.id], archived: !lead.archived })
-                            }
-                            aria-label={lead.archived ? "Unarchive lead" : "Archive lead"}
-                          >
-                            {lead.archived ? (
-                              <ArchiveRestore className="size-4" />
-                            ) : (
-                              <Archive className="size-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeLead.mutate([lead.id])}
-                            aria-label="Delete lead"
-                          >
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
+                          {view === "trash" ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => restoreLead.mutate([lead.id])}
+                                aria-label="Restore lead"
+                              >
+                                <RotateCcw className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => purgeLead.mutate([lead.id])}
+                                aria-label="Delete lead forever"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  setArchived.mutate({ ids: [lead.id], archived: !lead.archived })
+                                }
+                                aria-label={lead.archived ? "Unarchive lead" : "Archive lead"}
+                              >
+                                {lead.archived ? (
+                                  <ArchiveRestore className="size-4" />
+                                ) : (
+                                  <Archive className="size-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeLead.mutate([lead.id])}
+                                aria-label="Move lead to trash"
+                              >
+                                <Trash2 className="size-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>

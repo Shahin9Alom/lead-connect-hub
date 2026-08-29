@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           archived: boolean
           created_at: string
+          deleted_at: string | null
           facebook_link: string
           id: string
           phone: string | null
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           archived?: boolean
           created_at?: string
+          deleted_at?: string | null
           facebook_link: string
           id?: string
           phone?: string | null
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           archived?: boolean
           created_at?: string
+          deleted_at?: string | null
           facebook_link?: string
           id?: string
           phone?: string | null
