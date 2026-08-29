@@ -228,14 +228,28 @@ function LeadsPage() {
   });
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return leads.filter((l) => {
-      if (l.archived !== (view === "archived")) return false;
+      if (view === "trash") {
+        if (!l.deleted_at) return false;
+      } else {
+        if (l.deleted_at) return false;
+        if (l.archived !== (view === "archived")) return false;
+      }
+      if (q) {
+        const match =
+          String(l.serial) === q ||
+          String(l.serial).includes(q) ||
+          l.facebook_link.toLowerCase().includes(q) ||
+          (l.phone ?? "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
       const d = new Date(l.created_at);
       if (from && d < new Date(`${from}T00:00:00`)) return false;
       if (to && d > new Date(`${to}T23:59:59`)) return false;
       return true;
     });
-  }, [leads, from, to, view]);
+  }, [leads, from, to, view, search]);
 
   useEffect(() => {
     setSelected([]);
