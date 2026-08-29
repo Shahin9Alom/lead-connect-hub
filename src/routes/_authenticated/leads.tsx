@@ -64,15 +64,20 @@ function LeadsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [view, setView] = useState<"active" | "archived">("active");
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<"active" | "archived" | "trash">("active");
   const [selected, setSelected] = useState<string[]>([]);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async (): Promise<Lead[]> => {
+      // 30 din er purono trash auto delete
+      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from("leads").delete().lt("deleted_at", cutoff);
+
       const { data, error } = await supabase
         .from("leads")
-        .select("id, serial, phone, facebook_link, verified, archived, created_at")
+        .select("id, serial, phone, facebook_link, verified, archived, deleted_at, created_at")
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
