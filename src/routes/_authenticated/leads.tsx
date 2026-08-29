@@ -165,12 +165,41 @@ function LeadsPage() {
 
   const removeLead = useMutation({
     mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setSelected([]);
+      toast.success("Trash-e pathano hoyeche (30 din thakbe)");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const restoreLead = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from("leads").update({ deleted_at: null }).in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setSelected([]);
+      toast.success("Restore kora hoyeche");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const purgeLead = useMutation({
+    mutationFn: async (ids: string[]) => {
       const { error } = await supabase.from("leads").delete().in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => {
       setSelected([]);
-      toast.success("Lead delete hoyeche");
+      toast.success("Permanently delete hoyeche");
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
