@@ -73,13 +73,18 @@ function LeadsPage() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async (): Promise<Lead[]> => {
-      // 30 din er purono trash auto delete
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) return [];
+
+      // 30 din er purono trash auto delete (shudhu nijer lead)
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase.from("leads").delete().lt("deleted_at", cutoff);
+      await supabase.from("leads").delete().eq("user_id", uid).lt("deleted_at", cutoff);
 
       const { data, error } = await supabase
         .from("leads")
         .select("id, serial, phone, facebook_link, verified, archived, deleted_at, created_at")
+        .eq("user_id", uid)
         .order("serial", { ascending: false });
       if (error) throw error;
       return data ?? [];
