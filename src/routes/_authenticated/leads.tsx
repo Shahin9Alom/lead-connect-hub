@@ -118,7 +118,11 @@ function LeadsPage() {
         phone: trimmedPhone,
         serial: 0,
       });
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505")
+          throw new Error("Ei link onno ekta account e already add kora ache.");
+        throw error;
+      }
     },
     onSuccess: () => {
       setLink("");
@@ -155,9 +159,24 @@ function LeadsPage() {
 
       if (rows.length === 0)
         throw new Error(skipped > 0 ? "Shob link already add kora ache." : "Kono valid link pawa jayni.");
-      const { error } = await supabase.from("leads").insert(rows);
-      if (error) throw error;
-      return { added: rows.length, skipped };
+
+      // Row by row insert — onno account e thaka link (global duplicate) skip hobe
+      let added = 0;
+      let globalSkipped = 0;
+      for (const row of rows) {
+        const { error } = await supabase.from("leads").insert(row);
+        if (error) {
+          if (error.code === "23505") {
+            globalSkipped++;
+            continue;
+          }
+          throw error;
+        }
+        added++;
+      }
+      if (added === 0)
+        throw new Error("Shob link already add kora ache (onno account eo thakte pare).");
+      return { added, skipped: skipped + globalSkipped };
     },
     onSuccess: ({ added, skipped }) => {
       setBulkText("");
