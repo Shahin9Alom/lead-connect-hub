@@ -91,17 +91,21 @@ function LeadsPage() {
     },
   });
 
+  // Link normalize: shesher slash / space remove — jeno same link onno bhabe dileo duplicate dhore
+  const normalizeLink = (url: string) => url.trim().replace(/\/+$/, "");
+  const linkKey = (url: string) => normalizeLink(url).toLowerCase();
+
   const addLead = useMutation({
     mutationFn: async () => {
-      const trimmedLink = link.trim();
+      const trimmedLink = normalizeLink(link);
       const trimmedPhone = phone.trim().slice(0, 30) || null;
       if (!/^https?:\/\/.+/i.test(trimmedLink)) throw new Error("Ekta valid link din (https://...)");
       const { data: userData } = await supabase.auth.getUser();
       const uid = userData.user?.id;
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
 
-      const linkLower = trimmedLink.toLowerCase();
-      const duplicateLink = leads.find((l) => l.facebook_link.toLowerCase() === linkLower);
+      const linkLower = linkKey(trimmedLink);
+      const duplicateLink = leads.find((l) => linkKey(l.facebook_link) === linkLower);
       if (duplicateLink) throw new Error("Ei Facebook link already add kora ache.");
 
       if (trimmedPhone) {
@@ -139,7 +143,7 @@ function LeadsPage() {
       const uid = userData.user?.id;
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
 
-      const existingLinks = new Set(leads.map((l) => l.facebook_link.toLowerCase()));
+      const existingLinks = new Set(leads.map((l) => linkKey(l.facebook_link)));
       const rows: { user_id: string; facebook_link: string; serial: number }[] = [];
       const seen = new Set<string>();
       let skipped = 0;
@@ -147,8 +151,8 @@ function LeadsPage() {
       for (const line of bulkText.split("\n")) {
         const match = line.match(/https?:\/\/\S+/i);
         if (!match) continue;
-        const url = match[0].replace(/[),.;]+$/, "").slice(0, 500);
-        const key = url.toLowerCase();
+        const url = normalizeLink(match[0].replace(/[),.;]+$/, "")).slice(0, 500);
+        const key = linkKey(url);
         if (seen.has(key) || existingLinks.has(key)) {
           skipped++;
           continue;
