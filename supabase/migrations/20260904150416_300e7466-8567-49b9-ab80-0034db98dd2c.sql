@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX leads_facebook_link_global_unique ON public.leads (lower(facebook_link));
