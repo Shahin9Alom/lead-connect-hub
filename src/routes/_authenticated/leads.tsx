@@ -119,6 +119,8 @@ function LeadsPage() {
       const { error } = await supabase.from("leads").insert({
         user_id: uid,
         facebook_link: trimmedLink.slice(0, 500),
+        // The database trigger replaces this with the authoritative canonical value.
+        canonical_link: trimmedLink.slice(0, 500),
         phone: trimmedPhone,
         serial: 0,
       });
@@ -144,7 +146,12 @@ function LeadsPage() {
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
 
       const existingLinks = new Set(leads.map((l) => linkKey(l.facebook_link)));
-      const rows: { user_id: string; facebook_link: string; serial: number }[] = [];
+      const rows: {
+        user_id: string;
+        facebook_link: string;
+        canonical_link: string;
+        serial: number;
+      }[] = [];
       const seen = new Set<string>();
       let skipped = 0;
 
@@ -158,7 +165,7 @@ function LeadsPage() {
           continue;
         }
         seen.add(key);
-        rows.push({ user_id: uid, facebook_link: url, serial: 0 });
+        rows.push({ user_id: uid, facebook_link: url, canonical_link: url, serial: 0 });
       }
 
       if (rows.length === 0)
