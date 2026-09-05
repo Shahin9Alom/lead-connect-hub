@@ -17,6 +17,7 @@ export type Database = {
       leads: {
         Row: {
           archived: boolean
+          canonical_link: string
           created_at: string
           deleted_at: string | null
           facebook_link: string
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           archived?: boolean
+          canonical_link: string
           created_at?: string
           deleted_at?: string | null
           facebook_link: string
@@ -39,6 +41,7 @@ export type Database = {
         }
         Update: {
           archived?: boolean
+          canonical_link?: string
           created_at?: string
           deleted_at?: string | null
           facebook_link?: string
@@ -55,7 +58,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      canonical_facebook_link: { Args: { input_link: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
