@@ -189,11 +189,12 @@ function LeadsPage() {
         if (!match) continue;
         const url = normalizeLink(match[0].replace(/[),.;]+$/, "")).slice(0, 500);
         const key = linkKey(url);
-        if (seen.has(key) || existingLinks.has(key)) {
+        if (seen.has(key) || existingLinks.has(key) || collectedKeys.has(key)) {
           skipped++;
           continue;
         }
         seen.add(key);
+
         rows.push({ user_id: uid, facebook_link: url, canonical_link: url, serial: 0 });
       }
 
