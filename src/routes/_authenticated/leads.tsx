@@ -42,6 +42,14 @@ type Lead = {
   created_at: string;
 };
 
+type Collected = {
+  facebook_link: string;
+  canonical_link: string;
+  created_at: string;
+  mine: boolean;
+};
+
+
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({
     meta: [
