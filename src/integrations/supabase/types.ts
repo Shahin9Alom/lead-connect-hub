@@ -59,6 +59,15 @@ export type Database = {
     }
     Functions: {
       canonical_facebook_link: { Args: { input_link: string }; Returns: string }
+      collected_leads: {
+        Args: never
+        Returns: {
+          canonical_link: string
+          created_at: string
+          facebook_link: string
+          mine: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
