@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.collected_leads() FROM anon;
