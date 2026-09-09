@@ -67,7 +67,7 @@ function LeadsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"active" | "archived" | "trash">("active");
+  const [view, setView] = useState<"active" | "archived" | "trash" | "collected">("active");
   const [selected, setSelected] = useState<string[]>([]);
 
   const { data: leads = [], isLoading } = useQuery({
@@ -91,9 +91,25 @@ function LeadsPage() {
     },
   });
 
+  // Already Collected — shob account mile je link gulo already newa hoyeche
+  const { data: collected = [], isLoading: collectedLoading } = useQuery({
+    queryKey: ["collected-leads"],
+    queryFn: async (): Promise<Collected[]> => {
+      const { data, error } = await supabase.rpc("collected_leads");
+      if (error) throw error;
+      return (data ?? []) as Collected[];
+    },
+  });
+
   // Link normalize: shesher slash / space remove — jeno same link onno bhabe dileo duplicate dhore
   const normalizeLink = (url: string) => url.trim().replace(/\/+$/, "");
   const linkKey = (url: string) => normalizeLink(url).toLowerCase();
+
+  const collectedKeys = useMemo(
+    () => new Set(collected.map((c) => linkKey(c.facebook_link))),
+    [collected],
+  );
+
 
   const addLead = useMutation({
     mutationFn: async () => {
