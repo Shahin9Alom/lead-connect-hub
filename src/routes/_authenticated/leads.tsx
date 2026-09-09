@@ -450,8 +450,16 @@ function LeadsPage() {
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-3">
               <CardTitle className="text-lg">
-                {view === "active" ? "Leads" : view === "archived" ? "Archive" : "Trash"}{" "}
-                <span className="text-muted-foreground">({filtered.length})</span>
+                {view === "active"
+                  ? "Leads"
+                  : view === "archived"
+                    ? "Archive"
+                    : view === "trash"
+                      ? "Trash"
+                      : "Already Collected"}{" "}
+                <span className="text-muted-foreground">
+                  ({view === "collected" ? filteredCollected.length : filtered.length})
+                </span>
               </CardTitle>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -475,7 +483,15 @@ function LeadsPage() {
                 >
                   <Trash2 className="mr-2 size-4" /> Trash
                 </Button>
+                <Button
+                  size="sm"
+                  variant={view === "collected" ? "default" : "outline"}
+                  onClick={() => setView("collected")}
+                >
+                  <Globe className="mr-2 size-4" /> Already Collected
+                </Button>
               </div>
+
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
