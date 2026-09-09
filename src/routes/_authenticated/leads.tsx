@@ -15,6 +15,8 @@ import {
   ArchiveRestore,
   RotateCcw,
   Search,
+  Globe,
+
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,14 @@ type Lead = {
   created_at: string;
 };
 
+type Collected = {
+  facebook_link: string;
+  canonical_link: string;
+  created_at: string;
+  mine: boolean;
+};
+
+
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({
     meta: [
@@ -67,7 +77,7 @@ function LeadsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"active" | "archived" | "trash">("active");
+  const [view, setView] = useState<"active" | "archived" | "trash" | "collected">("active");
   const [selected, setSelected] = useState<string[]>([]);
 
   const { data: leads = [], isLoading } = useQuery({
@@ -91,9 +101,25 @@ function LeadsPage() {
     },
   });
 
+  // Already Collected — shob account mile je link gulo already newa hoyeche
+  const { data: collected = [], isLoading: collectedLoading } = useQuery({
+    queryKey: ["collected-leads"],
+    queryFn: async (): Promise<Collected[]> => {
+      const { data, error } = await supabase.rpc("collected_leads");
+      if (error) throw error;
+      return (data ?? []) as Collected[];
+    },
+  });
+
   // Link normalize: shesher slash / space remove — jeno same link onno bhabe dileo duplicate dhore
   const normalizeLink = (url: string) => url.trim().replace(/\/+$/, "");
   const linkKey = (url: string) => normalizeLink(url).toLowerCase();
+
+  const collectedKeys = useMemo(
+    () => new Set(collected.map((c) => linkKey(c.facebook_link))),
+    [collected],
+  );
+
 
   const addLead = useMutation({
     mutationFn: async () => {
@@ -107,6 +133,9 @@ function LeadsPage() {
       const linkLower = linkKey(trimmedLink);
       const duplicateLink = leads.find((l) => linkKey(l.facebook_link) === linkLower);
       if (duplicateLink) throw new Error("Ei Facebook link already add kora ache.");
+      if (collectedKeys.has(linkLower))
+        throw new Error("Ei link already collected — onno account e newa hoyeche.");
+
 
       if (trimmedPhone) {
         const phoneDigits = trimmedPhone.replace(/\D/g, "");
@@ -135,6 +164,8 @@ function LeadsPage() {
       setPhone("");
       toast.success("Lead add hoyeche");
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["collected-leads"] });
+
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -160,11 +191,12 @@ function LeadsPage() {
         if (!match) continue;
         const url = normalizeLink(match[0].replace(/[),.;]+$/, "")).slice(0, 500);
         const key = linkKey(url);
-        if (seen.has(key) || existingLinks.has(key)) {
+        if (seen.has(key) || existingLinks.has(key) || collectedKeys.has(key)) {
           skipped++;
           continue;
         }
         seen.add(key);
+
         rows.push({ user_id: uid, facebook_link: url, canonical_link: url, serial: 0 });
       }
 
@@ -196,6 +228,8 @@ function LeadsPage() {
         skipped > 0 ? `${added} ta lead add hoyeche (${skipped} ta duplicate skip)` : `${added} ta lead add hoyeche`,
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["collected-leads"] });
+
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -266,6 +300,7 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    if (view === "collected") return [];
     return leads.filter((l) => {
       if (view === "trash") {
         if (!l.deleted_at) return false;
@@ -287,6 +322,20 @@ function LeadsPage() {
       return true;
     });
   }, [leads, from, to, view, search]);
+
+  const filteredCollected = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return collected
+      .filter((c) => {
+        if (q && !c.facebook_link.toLowerCase().includes(q)) return false;
+        const d = new Date(c.created_at);
+        if (from && d < new Date(`${from}T00:00:00`)) return false;
+        if (to && d > new Date(`${to}T23:59:59`)) return false;
+        return true;
+      })
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  }, [collected, from, to, search]);
+
 
   useEffect(() => {
     setSelected([]);
@@ -403,8 +452,16 @@ function LeadsPage() {
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-3">
               <CardTitle className="text-lg">
-                {view === "active" ? "Leads" : view === "archived" ? "Archive" : "Trash"}{" "}
-                <span className="text-muted-foreground">({filtered.length})</span>
+                {view === "active"
+                  ? "Leads"
+                  : view === "archived"
+                    ? "Archive"
+                    : view === "trash"
+                      ? "Trash"
+                      : "Already Collected"}{" "}
+                <span className="text-muted-foreground">
+                  ({view === "collected" ? filteredCollected.length : filtered.length})
+                </span>
               </CardTitle>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -428,7 +485,15 @@ function LeadsPage() {
                 >
                   <Trash2 className="mr-2 size-4" /> Trash
                 </Button>
+                <Button
+                  size="sm"
+                  variant={view === "collected" ? "default" : "outline"}
+                  onClick={() => setView("collected")}
+                >
+                  <Globe className="mr-2 size-4" /> Already Collected
+                </Button>
               </div>
+
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1">
@@ -477,7 +542,65 @@ function LeadsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {view === "collected" ? (
+              <>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Ei link gulo shob account mile already collect kora hoyeche — ekta link shudhu
+                  ekjon-i add korte parbe. Ekhane kono phone number ba account info dekhano hoy na.
+                </p>
+                {collectedLoading ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+                ) : filteredCollected.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Ekhono kono link collect kora hoyni.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Facebook link</TableHead>
+                        <TableHead className="w-32">Collected by</TableHead>
+                        <TableHead className="w-32">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCollected.map((c) => (
+                        <TableRow key={c.canonical_link}>
+                          <TableCell className="max-w-[380px] truncate">
+                            <a
+                              href={c.facebook_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                            >
+                              {c.facebook_link}
+                              <ExternalLink className="size-3 shrink-0" />
+                            </a>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                c.mine
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {c.mine ? "Ami" : "Onno account"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(c.created_at).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </>
+            ) : (
+              <>
             {view === "trash" && (
+
               <p className="mb-4 text-sm text-muted-foreground">
                 Trash-er lead gulo 30 din por automatic permanently delete hoye jabe. Chaile ekhoni
                 permanently delete ba restore korte paren.
@@ -689,6 +812,9 @@ function LeadsPage() {
                 </TableBody>
               </Table>
             )}
+              </>
+            )}
+
           </CardContent>
         </Card>
       </div>
