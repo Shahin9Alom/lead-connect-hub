@@ -226,6 +226,8 @@ function LeadsPage() {
         skipped > 0 ? `${added} ta lead add hoyeche (${skipped} ta duplicate skip)` : `${added} ta lead add hoyeche`,
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["collected-leads"] });
+
     },
     onError: (e: Error) => toast.error(e.message),
   });
