@@ -298,6 +298,7 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    if (view === "collected") return [];
     return leads.filter((l) => {
       if (view === "trash") {
         if (!l.deleted_at) return false;
@@ -319,6 +320,20 @@ function LeadsPage() {
       return true;
     });
   }, [leads, from, to, view, search]);
+
+  const filteredCollected = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return collected
+      .filter((c) => {
+        if (q && !c.facebook_link.toLowerCase().includes(q)) return false;
+        const d = new Date(c.created_at);
+        if (from && d < new Date(`${from}T00:00:00`)) return false;
+        if (to && d > new Date(`${to}T23:59:59`)) return false;
+        return true;
+      })
+      .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  }, [collected, from, to, search]);
+
 
   useEffect(() => {
     setSelected([]);
