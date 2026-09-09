@@ -540,7 +540,65 @@ function LeadsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {view === "collected" ? (
+              <>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Ei link gulo shob account mile already collect kora hoyeche — ekta link shudhu
+                  ekjon-i add korte parbe. Ekhane kono phone number ba account info dekhano hoy na.
+                </p>
+                {collectedLoading ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+                ) : filteredCollected.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Ekhono kono link collect kora hoyni.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Facebook link</TableHead>
+                        <TableHead className="w-32">Collected by</TableHead>
+                        <TableHead className="w-32">Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCollected.map((c) => (
+                        <TableRow key={c.canonical_link}>
+                          <TableCell className="max-w-[380px] truncate">
+                            <a
+                              href={c.facebook_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:underline"
+                            >
+                              {c.facebook_link}
+                              <ExternalLink className="size-3 shrink-0" />
+                            </a>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                c.mine
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {c.mine ? "Ami" : "Onno account"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(c.created_at).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </>
+            ) : (
+              <>
             {view === "trash" && (
+
               <p className="mb-4 text-sm text-muted-foreground">
                 Trash-er lead gulo 30 din por automatic permanently delete hoye jabe. Chaile ekhoni
                 permanently delete ba restore korte paren.
