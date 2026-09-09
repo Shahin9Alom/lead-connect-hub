@@ -131,6 +131,9 @@ function LeadsPage() {
       const linkLower = linkKey(trimmedLink);
       const duplicateLink = leads.find((l) => linkKey(l.facebook_link) === linkLower);
       if (duplicateLink) throw new Error("Ei Facebook link already add kora ache.");
+      if (collectedKeys.has(linkLower))
+        throw new Error("Ei link already collected — onno account e newa hoyeche.");
+
 
       if (trimmedPhone) {
         const phoneDigits = trimmedPhone.replace(/\D/g, "");
