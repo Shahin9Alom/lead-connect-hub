@@ -352,6 +352,31 @@ function LeadsPage() {
     navigate({ to: "/auth" });
   };
 
+  // Android "Install app" support (PWA install prompt)
+  const [installEvent, setInstallEvent] = useState<any>(null);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallEvent(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const installApp = async () => {
+    if (installEvent) {
+      installEvent.prompt();
+      await installEvent.userChoice;
+      setInstallEvent(null);
+    } else {
+      toast.info(
+        "Chrome menu (⋮) → 'Add to Home screen' / 'Install app' chapun. Phone-e app icon hoye jabe.",
+        { duration: 6000 }
+      );
+    }
+  };
+
+
   return (
     <main className="min-h-screen">
       <header
