@@ -390,9 +390,14 @@ function LeadsPage() {
               Facebook lead links — auto serial number, archive & date filter
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={signOut}>
-            <LogOut className="mr-2 size-4" /> Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={installApp}>
+              <Download className="mr-2 size-4" /> Install App
+            </Button>
+            <Button variant="secondary" size="sm" onClick={signOut}>
+              <LogOut className="mr-2 size-4" /> Logout
+            </Button>
+          </div>
         </div>
       </header>
 
