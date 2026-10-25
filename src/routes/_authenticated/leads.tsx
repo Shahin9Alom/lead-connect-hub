@@ -83,13 +83,14 @@ function LeadsPage() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async (): Promise<Lead[]> => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
       if (!uid) return [];
 
-      // 30 din er purono trash auto delete (shudhu nijer lead)
+      // 30 din er purono trash auto delete (shudhu nijer lead) —
+      // background-e chole, page load er jonno wait kora hoy na.
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase.from("leads").delete().eq("user_id", uid).lt("deleted_at", cutoff);
+      supabase.from("leads").delete().eq("user_id", uid).lt("deleted_at", cutoff);
 
       const { data, error } = await supabase
         .from("leads")
@@ -126,8 +127,8 @@ function LeadsPage() {
       const trimmedLink = normalizeLink(link);
       const trimmedPhone = phone.trim().slice(0, 30) || null;
       if (!/^https?:\/\/.+/i.test(trimmedLink)) throw new Error("Ekta valid link din (https://...)");
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
 
       const linkLower = linkKey(trimmedLink);
@@ -172,8 +173,8 @@ function LeadsPage() {
 
   const addBulk = useMutation({
     mutationFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
       if (!uid) throw new Error("Session shesh hoye geche, abar login korun.");
 
       const existingLinks = new Set(leads.map((l) => linkKey(l.facebook_link)));

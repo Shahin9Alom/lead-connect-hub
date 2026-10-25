@@ -4,6 +4,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Self-hosted fonts — served from /fonts so page load never depends on an
+   external font server (blocked/slow font CDN used to stall first paint). */
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("/fonts/dm-sans.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("/fonts/space-grotesk.woff2") format("woff2");
+}
+
 /*
  * Design system definition.
  *
