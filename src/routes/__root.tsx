@@ -4,7 +4,6 @@ import {
   Link,
   createRootRouteWithContext,
   lazyRouteComponent,
-  useRouter,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
