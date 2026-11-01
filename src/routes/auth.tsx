@@ -29,8 +29,12 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  // JS must be loaded before the form can submit safely; before hydration a
+  // native GET submit would reload the page and the login would be lost.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    setReady(true);
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/leads" });
     });
@@ -115,7 +119,12 @@ function AuthPage() {
                       placeholder="••••••••"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!ready || loading}
+                    title={ready ? undefined : "Ektu wait korun..."}
+                  >
                     {tab === "login" ? "Login" : "Create account"}
                   </Button>
                 </form>
